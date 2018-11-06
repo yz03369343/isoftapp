@@ -1,101 +1,102 @@
-# Helm Charts
+# Rancher Catalog
 
-Use this repository to submit official Charts for Helm. Charts are curated application definitions for Helm. For more information about installing and using Helm, see its
-[README.md](https://github.com/helm/helm/tree/master/README.md). To get a quick introduction to Charts see this [chart document](https://github.com/helm/helm/blob/master/docs/charts.md).
+A currated collection of Rancher 2.0 enhanced Helm charts. To see how catalogs are added and used in Rancher 2.0 take a look at the [docs page](https://rancher.com/docs/rancher/v2.x/en/concepts/catalogs/).
 
-## Where to find us
+## Rancher Chart Structure
 
-For general Helm Chart discussions join the Helm Charts (#charts) room in the [Kubernetes](http://slack.kubernetes.io/).
+A Rancher chart repository differs slightly in directory structure from upstream repos in that it includes an `app version` directory. Though Rancher can use native Helm repositories as well.
 
-For issues and support for Helm and Charts see [Support Channels](CONTRIBUTING.md#support-channels).
-
-## How do I install these charts?
-
-Just `helm install stable/<chart>`. This is the default repository for Helm which is located at https://kubernetes-charts.storage.googleapis.com/ and is installed by default.
-
-For more information on using Helm, refer to the [Helm's documentation](https://github.com/kubernetes/helm#docs).
-
-## How do I enable the Incubator repository?
-
-To add the Incubator charts for your local client, run `helm repo add`:
+A Rancher chart also has two additional files an `app-readme.md` file that provides a high level overview display in the Rancher 2.0 UI and a `questions.yml` file defining questions to prompt the user with. 
 
 ```
-$ helm repo add incubator https://kubernetes-charts-incubator.storage.googleapis.com/
-"incubator" has been added to your repositories
+charts/wordpress/<app version>/
+  app-readme.md            # Rancher Specific: Readme file for display in Rancher 2.0 UI
+  charts/                  # Directory containing dependency charts
+  Chart.yaml               # Required Helm chart information file
+  questions.yml            # Rancher Specific: File containing questions for Rancher 2.0 UI
+  README.md                # Optional: Helm Readme file (will be rendered in Rancher 2.0 UI as well)
+  requirements.yaml        # Optional YAML file listing dependencies for the chart
+  templates/               # A directory of templates that, when combined with values.yml will generate K8s YAML
+  values.yaml              # The default configuration values for this chart
+```
+*See the upstream Helm chart [developer reference](https://docs.helm.sh/developing_charts/) for a complete walk through of developing charts.*
+
+To convert an upstream chart to take advantage of Rancher's enhanced UX, first create an `app-readme.md` file in the root of your chart.
+
+```
+$ cat ./app-readme.md
+
+# Wordpress ROCKS!
 ```
 
-You can then run `helm search incubator` to see the charts.
+Then add a `questions.yml` file to prompt the user for something.
 
-## Chart Format
+```
+categories:
+- Blog
+- CMS
+questions:
+- variable: persistence.enabled
+  default: "false"
+  description: "Enable persistent volume for WordPress"
+  type: boolean
+  required: true
+  label: WordPress Persistent Volume Enabled
+  show_subquestion_if: true
+  group: "WordPress Settings"
+  subquestions:
+  - variable: persistence.size
+    default: "10Gi"
+    description: "WordPress Persistent Volume Size"
+    type: string
+    label: WordPress Volume Size
+  - variable: persistence.storageClass
+    default: ""
+    description: "If undefined or null, uses the default StorageClass. Default to null"
+    type: storageclass
+    label: Default StorageClass for WordPress
+```
 
-Take a look at the [alpine example chart](https://github.com/helm/helm/tree/master/docs/examples/alpine) and the [nginx example chart](https://github.com/helm/helm/tree/master/docs/examples/nginx) for reference when you're writing your first few charts.
+The above will prompt the user with a true / false radio button in the UI for enabling persistent storage. If the user choses to enable persistent storage they will be prompted for a storage class and volume size.
 
-Before contributing a Chart, become familiar with the format. Note that the project is still under active development and the format may still evolve a bit.
+The above file also provides a list of categories that this chart fits into. This helps users navigate and filtering when browsing the catalog UI.
 
-## Repository Structure
+#### Question Variable Reference
 
-This GitHub repository contains the source for the packaged and versioned charts released in the [`gs://kubernetes-charts` Google Storage bucket](https://console.cloud.google.com/storage/browser/kubernetes-charts/) (the Chart Repository).
+| Variable  | Type | Required | Description |
+| ------------- | ------------- | --- |------------- |
+| 	variable          | string  | true    |  define the variable name specified in the `values.yaml`file, using `foo.bar` for nested object. |
+| 	label             | string  | true      |  define the UI label. |
+| 	description       | string  | false      |  specify the description of the variable.|
+| 	type              | string  | false      |  default to `string` if not specified (current supported types are string, boolean, int, enum, password, storageclass and hostname).|
+| 	required          | bool    | false      |  define if the variable is required or not (true \| false)|
+| 	default           | string  | false      |  specify the default value. |
+| 	group             | string  | false      |  group questions by input value. |
+| 	min_length        | int     | false      | min character length.|
+| 	max_length        | int     | false      | max character length.|
+| 	min               | int     | false      |  min integer length. |
+| 	max               | int     | false      |  max integer length. |
+| 	options           | []string | false     |  specify the options when the vriable type is `enum`, for example: options:<br> - "ClusterIP" <br> - "NodePort" <br> - "LoadBalancer"|
+| 	valid_chars       | string   | false     |  regular expression for input chars validation. |
+| 	invalid_chars     | string   | false     |  regular expression for invalid input chars validation.|
+| 	subquestions      | []subquestion | false|  add an array of subquestions.|
+| 	show_if           | string      | false  | show current variable if conditional variable is true, for example `show_if: "serviceType=Nodeport"` |
+| 	show\_subquestion_if |  string  | false     | show subquestions if is true or equal to one of the options. for example `show_subquestion_if: "true"`|
 
-The Charts in the `stable/` directory in the master branch of this repository match the latest packaged Chart in the Chart Repository, though there may be previous versions of a Chart available in that Chart Repository.
+**subquestions**: `subquestions[]` cannot contain `subquestions` or `show_subquestions_if` keys, but all other keys in the above table are supported. 
 
-The purpose of this repository is to provide a place for maintaining and contributing official Charts, with CI processes in place for managing the releasing of Charts into the Chart Repository.
+## License
+Copyright (c) 2018 [Rancher Labs, Inc.](http://rancher.com)
 
-The Charts in this repository are organized into two folders:
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-* stable
-* incubator
+[http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
-Stable Charts meet the criteria in the [technical requirements](CONTRIBUTING.md#technical-requirements).
-
-Incubator Charts are those that do not meet these criteria. Having the incubator folder allows charts to be shared and improved on until they are ready to be moved into the stable folder. The charts in the `incubator/` directory can be found in the [`gs://kubernetes-charts-incubator` Google Storage Bucket](https://console.cloud.google.com/storage/browser/kubernetes-charts-incubator).
-
-In order to get a Chart from incubator to stable, Chart maintainers should open a pull request that moves the chart folder.
-
-## Contributing a Chart
-
-We'd love for you to contribute a Chart that provides a useful application or service for Kubernetes. Please read our [Contribution Guide](CONTRIBUTING.md) for more information on how you can contribute Charts.
-
-Note: We use the same [workflow](https://github.com/kubernetes/community/blob/master/contributors/devel/development.md#workflow),
-[License](LICENSE) and [Contributor License Agreement](CONTRIBUTING.md) as the main Kubernetes repository.
-
-## Owning and Maintaining A Chart
-
-Individual charts can be maintained by one or more members of the Kubernetes community. When someone maintains a chart they have the access to merge changes to that chart. To have merge access to a chart someone needs to:
-
-1. Be listed on the chart, in the `Chart.yaml` file, as a maintainer. If you need sponsors and have contributed to the chart, please reach out to the existing maintainers, or if you are having trouble connecting with them, please reach out to one of the [OWNERS](OWNERS) of the charts repository.
-1. Be invited (and accept your invite) as a read-only collaborator on [this repo](https://github.com/helm/charts). This is required for @k8s-ci-robot [PR comment interaction](https://github.com/kubernetes/community/blob/master/contributors/guide/pull-requests.md).
-1. An OWNERS file needs to be added to a chart. That OWNERS file should list the maintainers' GitHub login names for both the reviewers and approvers sections. For an example see the [Drupal chart](stable/drupal/OWNERS). The `OWNERS` file should also be appended to the `.helmignore` file.
-
-Once these two steps are done a chart approver can merge pull requests following the directions in the [REVIEW_GUIDELINES.md](REVIEW_GUIDELINES.md) file.
-
-## Trusted Collaborator
-
-The `pull-charts-e2e` test run, that installs a chart to test it, is required before a pull request can be merged. These tests run automatically for members of the Helm Org and for chart OWNERS, listed in OWNERS files. For regular contributors who are trusted, in a manner similar to Kubernetes community members, we have trusted collaborators. These individuals can have their tests run automatically as well as mark other pull requests as ok to test by adding a comment of `/ok-to-test` on pull requests.
-
-There are two paths to becoming a trusted collaborator. One only needs follow one of them.
-
-1. If you are a Kubernetes GitHub org member and have your Kubernetes org membership public you can become a trusted collaborator for Helm Charts
-2. Get sponsorship from one of the Charts Maintainers listed in the OWNERS file at the root of this repository
-
-The process to get added is:
-
-* File an issue asking to be a trusted collaborator
-* A Helm Chart Maintainer can then add the user as a read only collaborator to the repository
-
-## Review Process
-
-For information related to the review procedure used by the Chart repository maintainers, see [Merge approval and release process](CONTRIBUTING.md#merge-approval-and-release-process).
-
-### Stale Pull Requests and Issues
-
-Pull Requests and Issues that have no activity for 30 days automatically become stale. After 30 days of being stale, without activity, they become rotten. Pull Requests and Issues can rot for 30 days and then they are automatically closed. This is the standard stale process handling for all repositories on the Kubernetes GitHub organization.
-
-## Supported Kubernetes Versions
-
-This chart repository supports the latest and previous minor versions of Kubernetes. For example, if the latest minor release of Kubernetes is 1.8 then 1.7 and 1.8 are supported. Charts may still work on previous versions of Kubernertes even though they are outside the target supported window.
-
-To provide that support the API versions of objects should be those that work for both the latest minor release and the previous one.
-
-## Status of the Project
-
-This project is still under active development, so you might run into [issues](https://github.com/helm/charts/issues). If you do, please don't be shy about letting us know, or better yet, contribute a fix or feature.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+    
